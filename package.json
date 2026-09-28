@@ -22,7 +22,7 @@
   "openclaw": {
     "extensions": ["./index.js"],
     "compat": {
-      "pluginApi": ">=2026.9.4",
+      "pluginApi": "2026.9.4",
       "minGatewayVersion": "2026.9.4"
     },
     "build": {
@@ -31,7 +31,7 @@
     }
   },
   "peerDependencies": {
-    "openclaw": ">=2026.9.4"
+    "openclaw": "2026.9.4"
   },
   "peerDependenciesMeta": {
     "openclaw": {

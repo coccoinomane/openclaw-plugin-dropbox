@@ -1,13 +1,7 @@
 import { DEFAULT_HTTP_TIMEOUT_MS, TOKEN_ENDPOINT } from "./constants.mjs";
 import { refreshError } from "./errors.mjs";
 
-const MAX_DESCRIPTION_CHARS = 200;
-
-function safeDescription(value) {
-  if (typeof value !== "string") return null;
-  const oneLine = value.replace(/\s+/g, " ").trim();
-  return oneLine.length > MAX_DESCRIPTION_CHARS ? `${oneLine.slice(0, MAX_DESCRIPTION_CHARS)}…` : oneLine;
-}
+const SAFE_OAUTH_ERRORS = new Set(["invalid_grant", "invalid_client", "invalid_request", "unsupported_grant_type", "invalid_scope", "server_error", "temporarily_unavailable"]);
 
 function hintFor(errorCode) {
   switch (errorCode) {
@@ -83,9 +77,8 @@ export async function refreshAccessToken(
   }
 
   if (!response.ok) {
-    const code = typeof json?.error === "string" ? json.error : null;
-    const description = safeDescription(json?.error_description);
-    const detail = code ? `${code}${description ? `: ${description}` : ""}` : "non-JSON error body";
+    const code = SAFE_OAUTH_ERRORS.has(json?.error) ? json.error : null;
+    const detail = code ?? "unrecognized OAuth error";
     throw refreshError(`Dropbox refused the token refresh (HTTP ${response.status}, ${detail}).`, hintFor(code));
   }
 
@@ -97,11 +90,15 @@ export async function refreshAccessToken(
     throw refreshError("Token refresh response is missing access_token.");
   }
   if (json.token_type !== undefined && String(json.token_type).toLowerCase() !== "bearer") {
-    throw refreshError(`Token refresh returned an unsupported token_type: ${safeDescription(String(json.token_type))}.`);
+    throw refreshError("Token refresh returned an unsupported token_type.");
   }
   const expiresIn = Number(json.expires_in);
-  if (!Number.isFinite(expiresIn) || expiresIn <= 0) {
+  if (!Number.isFinite(expiresIn) || expiresIn <= 0 || !Number.isFinite(new Date(requestedAt + expiresIn * 1000).getTime())) {
     throw refreshError("Token refresh response has an invalid expires_in value.");
+  }
+
+  if (requestedAt + Math.floor(expiresIn * 1000) - now() <= 300_000) {
+    throw refreshError("Refreshed token expires too soon to use safely.");
   }
 
   return {

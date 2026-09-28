@@ -340,7 +340,7 @@ test("a held lock is respected up to the bounded timeout (exit 6)", async (t) =>
   assert.equal(server.requests.length, 0);
 });
 
-test("a stale lock left by a dead process is recovered", async (t) => {
+test("a stale lock left by a dead process fails closed", async (t) => {
   const s = await setup(t);
   const server = await startTokenServer(t);
   const lockDir = path.join(s.cacheDir, "token-cache.lock");
@@ -349,9 +349,9 @@ test("a stale lock left by a dead process is recovered", async (t) => {
   await fs.writeFile(path.join(lockDir, "owner.json"), JSON.stringify({ pid: 2 ** 22 - 11, hostname: os.hostname(), id: "dead" }));
   const then = new Date(Date.now() - 60_000);
   await fs.utimes(lockDir, then, then);
-  const res = await runCli(["call", "search"], { env: s.env, withFakeMcporter: true, tokenUrl: server.url });
-  assert.equal(res.code, 0, res.stderr);
-  assert.equal(server.requests.length, 1);
+  const res = await runCli(["call", "search"], { env: { ...s.env, DROPBOX_LOCK_TIMEOUT_MS: "100" }, withFakeMcporter: true, tokenUrl: server.url });
+  assert.equal(res.code, 6, res.stderr);
+  assert.equal(server.requests.length, 0);
 });
 
 test("--mcporter accepts an explicit path and reports a bad one", async (t) => {

@@ -20,7 +20,11 @@ export function parseExpiresAt(raw) {
   if (/^\d+$/.test(value)) {
     const n = Number(value);
     // Anything below 10^12 cannot be a millisecond timestamp after 2001, so treat it as seconds.
-    return n < 1e12 ? n * 1000 : n;
+    const millis = n < 1e12 ? n * 1000 : n;
+    if (!Number.isFinite(millis) || !Number.isFinite(new Date(millis).getTime())) {
+      throw configError("DROPBOX_ACCESS_TOKEN_EXPIRES_AT is outside the supported timestamp range.");
+    }
+    return millis;
   }
   const parsed = Date.parse(value);
   if (Number.isNaN(parsed)) {

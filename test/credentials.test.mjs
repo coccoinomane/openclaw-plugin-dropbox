@@ -64,3 +64,8 @@ test("static token selection and validation", async () => {
     (err) => err.exitCode === 3 && /DROPBOX_APP_KEY is missing/.test(err.message),
   );
 });
+
+test("out-of-range numeric credential expiry is rejected", () => {
+  assert.throws(() => parseExpiresAt("9".repeat(400)), /timestamp range/);
+  assert.throws(() => parseExpiresAt("999999999999999999"), /timestamp range/);
+});

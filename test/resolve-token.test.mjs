@@ -73,7 +73,7 @@ test("a corrupt cache is ignored and rewritten", async (t) => {
   const f = fakeFetch();
   const { writeFile } = await import("node:fs/promises");
   const path = await import("node:path");
-  await writeFile(path.join(cacheDir, "token-cache.json"), "garbage");
+  await writeFile(path.join(cacheDir, "token-cache.json"), "garbage", { mode: 0o600 });
   const result = await resolveAccessToken({ credentials: await creds(REFRESH_ENV), cacheDir, fetch: f.fetch });
   assert.equal(result.token, "sl.one");
   assert.equal((await readCache(cacheDir)).state, "present");

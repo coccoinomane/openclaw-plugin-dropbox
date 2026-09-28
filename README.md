@@ -2,7 +2,7 @@
 
 Dropbox for OpenClaw, using the `mcporter` CLI you already have. The plugin ships a skill and a small Node wrapper. The wrapper refreshes the Dropbox OAuth access token when needed, then runs `mcporter` against the `dropbox` server in your existing mcporter config.
 
-The plugin does not register Dropbox tools with the model, does not bundle or depend on `mcporter`, and does not start an MCP server of its own. Dropbox stays behind a skill so it costs no context until the user asks for it.
+The plugin does not register Dropbox tools with the model, does not bundle or depend on `mcporter`, and does not start an MCP server of its own. Dropbox tool schemas stay out of the model context; only the short skill description is advertised until the skill is used.
 
 ## How it works
 
@@ -19,13 +19,13 @@ agent (skill)  ──►  node skills/dropbox/scripts/dropbox-mcporter.mjs call 
 - The refresh endpoint is fixed in the code. Nothing in config or environment can redirect it.
 - Access tokens are cached in a plugin-owned directory (mode 0700) as a file with mode 0600, written atomically.
 - A refresh happens when the cached token is missing, produced by different credentials, or expires within 5 minutes.
-- Concurrent wrapper processes share one refresh through a directory lock with bounded waits and stale-lock recovery.
+- Concurrent wrapper processes share one refresh through a directory lock with bounded waits. Existing locks are never stolen; an abandoned lock fails closed and needs operator cleanup with all wrappers stopped.
 - The refresh token and app secret are removed from the child environment. Only the short-lived access token reaches `mcporter`.
 - Nothing is retried automatically. A failed `mcporter` call, mutating or not, is reported once.
 
 ## Requirements
 
-- OpenClaw 2026.9.4 or newer (the plugin was written against that host).
+- OpenClaw 2026.9.4 (the tested SDK target; other versions require compatibility testing).
 - Node 24.16 or newer.
 - `mcporter` installed and on `PATH`, or its path configured. The plugin never installs it. The upstream OpenClaw `mcporter` skill declares the node installer (`npm install -g mcporter`); this plugin's skill declares the same one so the macOS Skills UI can offer it.
 - An existing mcporter config with a `dropbox` server whose `Authorization` header references `${DROPBOX_MCP_TOKEN}`.
@@ -39,7 +39,7 @@ For a local development checkout, link the directory so OpenClaw loads it from s
 openclaw plugins install --link /path/to/openclaw-plugin-dropbox
 ```
 
-The Gateway asks for capability consent on link installs. Restart the Gateway afterwards if it is not managed. Inspect the loaded runtime with:
+Link installs require capability consent and may automatically restart a managed Gateway. Schedule the installation accordingly; local source linking is not hot reload. Restart the Gateway afterwards if it is not managed. Inspect the loaded runtime with:
 
 ```bash
 openclaw plugins inspect dropbox --runtime --json
@@ -78,7 +78,7 @@ Keep using your existing shared mcporter config. The plugin only reads it and ne
 
 ### 2. Dropbox app and refresh token
 
-1. In the [Dropbox App Console](https://www.dropbox.com/developers/apps), create a scoped app (or reuse one). Note the app key. If the app has a client secret, note it too; apps created for PKCE have none.
+1. In the [Dropbox App Console](https://www.dropbox.com/developers/apps), create a scoped app (or reuse one). Note the app key. For the client-secret authorization flow below, note the app secret too.
 2. On the Permissions tab, grant only what the agent needs. For the workflows in the skill: `account_info.read`, `files.metadata.read`, `files.content.read`, and, only if the agent should write or share, `files.content.write` and `sharing.write`. Users can re-run the authorization to add scopes later.
 3. Authorize once in a browser and request a refresh token with `token_access_type=offline`:
 
@@ -90,11 +90,11 @@ Keep using your existing shared mcporter config. The plugin only reads it and ne
 
    ```bash
    curl https://api.dropboxapi.com/oauth2/token \
-     -d code=<CODE> -d grant_type=authorization_code \
-     -d client_id=<APP_KEY> -d client_secret=<APP_SECRET>   # omit client_secret for PKCE apps
+     --data-urlencode 'code=<CODE>' -d grant_type=authorization_code \
+     --data-urlencode 'client_id=<APP_KEY>' --data-urlencode 'client_secret=<APP_SECRET>'
    ```
 
-Refresh tokens do not expire on their own, but the user can revoke them and Dropbox invalidates them when the app is changed. Revocation shows up as `invalid_grant` from the wrapper.
+The alternative PKCE authorization flow needs a generated code verifier and challenge; do not simply omit the secret from the flow above. Refresh tokens have no preset expiry but can be revoked or invalidated. Revocation shows up as `invalid_grant` from the wrapper.
 
 ### 3. Credentials env file
 
@@ -186,9 +186,9 @@ Order of checks for `list`, `schema`, and `call`: config path, then executable, 
 
 ## Security notes
 
-- Secrets live in the env file and the token cache only. Both are ignored by git (`.gitignore`), and the cache directory is created with mode 0700 and the cache file with 0600. Existing cache files with wider permissions are flagged by `status`.
+- Secrets live in the env file and the token cache only. Both are ignored by git (`.gitignore`), and the cache directory is created with mode 0700 and the cache file with 0600. Cache reads reject symlinks, foreign ownership, and group/world permissions, including on the fresh-token fast path.
 - The cache records a SHA-256 fingerprint of the credentials that produced the token. Changing the app key or refresh token (for example switching accounts) invalidates the cache instead of reusing a token for the wrong account.
-- The wrapper never prints tokens, request bodies, or raw upstream responses. Error output carries the Dropbox error code and a truncated description at most.
+- The wrapper never prints tokens, request bodies, or raw upstream responses. Error output carries HTTP status and allowlisted OAuth error codes, never arbitrary response descriptions.
 - The mcporter child receives the parent environment minus every `DROPBOX_*` credential key, plus `DROPBOX_MCP_TOKEN` set to the current access token. Tokens are never passed as command-line arguments.
 - `mcporter` is spawned with an argument array and no shell.
 - Dropbox scopes: request the minimum. Read-only setups do not need `files.content.write` or `sharing.write`.
@@ -221,7 +221,7 @@ test/                                     node:test suites and helpers
 - `No mcporter config path configured` (exit 3): set `mcporterConfig` in the plugin config or pass `--config`.
 - `Dropbox refused the token refresh (HTTP 400, invalid_grant)` (exit 5): the refresh token was revoked or belongs to a different app. Re-authorize and update the env file.
 - `mcporter` fails with 401 right after a refresh: the token placeholder in the mcporter config may be missing. `status` warns when the `dropbox` entry does not reference `${DROPBOX_MCP_TOKEN}`.
-- `Timed out ... waiting for the token cache lock` (exit 6): another wrapper is refreshing, or a lock directory was left behind by a process that is still running. Dead-owner locks are recovered automatically.
+- `Timed out ... waiting for the token cache lock` (exit 6): another wrapper is refreshing, or a lock directory was left behind by a process that is still running. No existing lock is automatically removed, even if old. Stop all wrapper processes, verify the lock owner is no longer active, and remove only the reported lock directory before retrying.
 
 ## License
 

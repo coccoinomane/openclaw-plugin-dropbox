@@ -61,24 +61,18 @@ test("waits are bounded: a live lock times out with exit code 6", async (t) => {
   assert.ok((await fs.stat(lockDir)).isDirectory(), "a live lock must not be removed");
 });
 
-test("a lock whose owner pid is dead is recovered", async (t) => {
-  const lockDir = path.join(await makeTmpDir(t), "x.lock");
-  await plantLock(lockDir, { pid: 2 ** 22 - 7, hostname: os.hostname(), id: "dead" }, { ageMs: 10_000 });
-  const result = await withLock(lockDir, async () => "recovered", { timeoutMs: 2_000, pollMs: 10 });
-  assert.equal(result, "recovered");
-});
-
-test("a lock without owner file older than the grace period is recovered", async (t) => {
-  const lockDir = path.join(await makeTmpDir(t), "x.lock");
-  await plantLock(lockDir, null, { ageMs: 10_000 });
-  assert.equal(await withLock(lockDir, async () => "ok", { timeoutMs: 2_000, pollMs: 10 }), "ok");
-});
-
-test("a very old lock is recovered even when its owner pid is alive", async (t) => {
-  const lockDir = path.join(await makeTmpDir(t), "x.lock");
-  await plantLock(lockDir, { pid: process.pid, hostname: os.hostname(), id: "hung" }, { ageMs: 5_000 });
-  assert.equal(await withLock(lockDir, async () => "ok", { timeoutMs: 2_000, staleMs: 1_000, pollMs: 10 }), "ok");
-});
+for (const [label, owner] of [
+  ["dead owner", { pid: 2 ** 22 - 7, hostname: os.hostname(), id: "dead" }],
+  ["missing owner", null],
+  ["live owner", { pid: process.pid, hostname: os.hostname(), id: "live" }],
+]) {
+  test(`old lock with ${label} is never stolen`, async (t) => {
+    const lockDir = path.join(await makeTmpDir(t), "x.lock");
+    await plantLock(lockDir, owner, { ageMs: 300_000 });
+    await assert.rejects(withLock(lockDir, async () => assert.fail("must not enter"), { timeoutMs: 80, pollMs: 10 }), (err) => err.exitCode === 6);
+    assert.ok((await fs.stat(lockDir)).isDirectory());
+  });
+}
 
 test("a lock from another host with a fresh mtime is respected", async (t) => {
   const lockDir = path.join(await makeTmpDir(t), "x.lock");

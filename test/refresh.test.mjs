@@ -40,7 +40,7 @@ test("omits client_secret for PKCE apps and requires app key + refresh token", a
   let body;
   const fetch = async (_url, init) => {
     body = Object.fromEntries(new URLSearchParams(init.body));
-    return jsonResponse({ access_token: "sl.x", expires_in: 100 });
+    return jsonResponse({ access_token: "sl.x", expires_in: 3600 });
   };
   await refreshAccessToken({ appKey: "k", refreshToken: "r" }, { fetch });
   assert.equal("client_secret" in body, false);
@@ -57,6 +57,7 @@ test("Dropbox errors are reported by code without leaking secrets, and are never
     assert.equal(err.exitCode, 5);
     assert.match(err.message, /HTTP 400, invalid_grant/);
     assert.match(err.hint, /Re-authorize/);
+    assert.ok(!err.message.includes("refresh-secret"));
     return true;
   });
   assert.equal(calls, 1);
@@ -88,4 +89,24 @@ test("network failures and timeouts map to exit code 5 with a finite wait", asyn
   const started = Date.now();
   await assert.rejects(refreshAccessToken(CREDS, { fetch: hanging, timeoutMs: 50 }), (err) => err.exitCode === 5 && /timed out/.test(err.message));
   assert.ok(Date.now() - started < 2_000);
+});
+
+test("arbitrary upstream strings cannot appear in refresh errors", async () => {
+  for (const body of [
+    { error: "refresh-secret", error_description: "app-secret" },
+    { error: "invalid_grant", error_description: "refresh-secret app-secret" },
+  ]) {
+    await assert.rejects(refreshAccessToken(CREDS, { fetch: async () => jsonResponse(body, 400) }), (err) => {
+      assert.ok(!`${err.message} ${err.hint}`.includes("refresh-secret"));
+      assert.ok(!`${err.message} ${err.hint}`.includes("app-secret"));
+      return true;
+    });
+  }
+  await assert.rejects(refreshAccessToken(CREDS, { fetch: async () => jsonResponse({ access_token: "x", token_type: "refresh-secret", expires_in: 3600 }) }), (err) => !err.message.includes("refresh-secret"));
+});
+
+test("huge and already-expiring refresh lifetimes are rejected", async () => {
+  for (const expires_in of [1e30, 1, 299]) {
+    await assert.rejects(refreshAccessToken(CREDS, { fetch: async () => jsonResponse({ access_token: "x", expires_in }) }), (err) => err.exitCode === 5);
+  }
 });

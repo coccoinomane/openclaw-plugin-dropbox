@@ -43,7 +43,7 @@ test("corrupt or malformed cache files are reported, not thrown", async (t) => {
   const cacheDir = await makeTmpDir(t);
   assert.equal((await readCache(cacheDir)).state, "missing");
 
-  await fs.writeFile(cacheFilePath(cacheDir), "{not json");
+  await fs.writeFile(cacheFilePath(cacheDir), "{not json", { mode: 0o600 });
   const corrupt = await readCache(cacheDir);
   assert.equal(corrupt.state, "corrupt");
   assert.equal(corrupt.reason, "invalid JSON");
@@ -78,4 +78,24 @@ test("describeCache never includes the token", async (t) => {
   assert.equal(described.evaluation, "fresh");
   assert.equal(JSON.stringify(described).includes("sl.super-secret"), false);
   if (POSIX) assert.equal(described.permissionsOk, true);
+});
+
+test("fresh cache reads reject unsafe modes and symlinks", { skip: !POSIX }, async (t) => {
+  const root = await makeTmpDir(t);
+  const dir = path.join(root, "cache");
+  await writeCache(dir, entry());
+  await fs.chmod(cacheFilePath(dir), 0o644);
+  await assert.rejects(readCache(dir), /Unsafe token cache file/);
+  await fs.chmod(cacheFilePath(dir), 0o600);
+  await fs.chmod(dir, 0o755);
+  await assert.rejects(readCache(dir), /Unsafe token cache directory/);
+  await fs.chmod(dir, 0o700);
+  const linkedDir = path.join(root, "linked");
+  await fs.symlink(dir, linkedDir);
+  await assert.rejects(readCache(linkedDir), /Unsafe token cache directory/);
+  await assert.rejects(ensureCacheDir(linkedDir), /must not be a symlink/);
+  const target = path.join(root, "target");
+  await fs.rename(cacheFilePath(dir), target);
+  await fs.symlink(target, cacheFilePath(dir));
+  await assert.rejects(readCache(dir), /Unsafe token cache file/);
 });

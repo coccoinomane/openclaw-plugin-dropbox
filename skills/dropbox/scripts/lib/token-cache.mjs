@@ -22,7 +22,8 @@ export async function ensureCacheDir(cacheDir) {
     throw configError(`Cannot create token cache directory ${cacheDir}: ${err?.code ?? err?.message}`);
   }
   if (!POSIX) return;
-  const stat = await fs.stat(cacheDir);
+  const stat = await fs.lstat(cacheDir);
+  if (stat.isSymbolicLink() || (typeof process.getuid === "function" && stat.uid !== process.getuid())) throw configError("Token cache directory must be owned by the current user and must not be a symlink.");
   if (!stat.isDirectory()) throw configError(`Token cache path is not a directory: ${cacheDir}`);
   if ((stat.mode & 0o077) !== 0) {
     await fs.chmod(cacheDir, 0o700);
@@ -37,6 +38,7 @@ function isValidEntry(value) {
     typeof value.accessToken === "string" &&
     value.accessToken.length > 0 &&
     Number.isFinite(value.expiresAt) &&
+    Number.isFinite(new Date(value.expiresAt).getTime()) &&
     typeof value.credentialFingerprint === "string" &&
     value.credentialFingerprint.length > 0
   );
@@ -51,10 +53,18 @@ export async function readCache(cacheDir) {
   let text;
   let mode = null;
   try {
-    const stat = await fs.stat(file);
+    const directory = await fs.lstat(cacheDir);
+    if (!directory.isDirectory() || directory.isSymbolicLink() || (POSIX && ((directory.mode & 0o077) !== 0 || directory.uid !== process.getuid()))) {
+      throw configError("Unsafe token cache directory: use a private directory owned by the current user, mode 0700, without symlinks.");
+    }
+    const stat = await fs.lstat(file);
+    if (!stat.isFile() || stat.isSymbolicLink() || (POSIX && ((stat.mode & 0o077) !== 0 || stat.uid !== process.getuid()))) {
+      throw configError("Unsafe token cache file: use a regular file owned by the current user, mode 0600, without symlinks.");
+    }
     mode = POSIX ? stat.mode & 0o777 : null;
     text = await fs.readFile(file, "utf8");
   } catch (err) {
+    if (err?.exitCode) throw err;
     if (err?.code === "ENOENT") return { state: "missing", entry: null, path: file, mode };
     return { state: "corrupt", entry: null, path: file, mode, reason: err?.code ?? "unreadable" };
   }
