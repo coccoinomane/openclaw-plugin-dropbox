@@ -1,0 +1,21 @@
+# Dependencies and build output
+node_modules/
+*.tgz
+
+# Secrets: only the placeholder example is tracked
+.env
+.env.*
+!.env.example
+*.env
+dropbox.env
+
+# Token cache and locks produced by the wrapper
+token-cache.json
+token-cache.lock/
+*.stale-*
+.cache/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp

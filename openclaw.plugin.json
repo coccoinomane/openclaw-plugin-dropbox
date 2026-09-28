@@ -1,0 +1,44 @@
+{
+  "id": "dropbox",
+  "name": "Dropbox",
+  "description": "Dropbox through the external mcporter CLI: a packaged skill plus a wrapper that refreshes the OAuth access token on demand. No model tools are registered.",
+  "version": "0.1.0",
+  "categories": ["tools"],
+  "skills": ["skills"],
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "mcporterBin": {
+        "type": "string",
+        "description": "mcporter executable: a path or a command name found on PATH. Default: mcporter."
+      },
+      "mcporterConfig": {
+        "type": "string",
+        "description": "Path to the shared mcporter config that defines the Dropbox server. The plugin only reads it."
+      },
+      "envFile": {
+        "type": "string",
+        "description": "Optional env file with DROPBOX_APP_KEY, DROPBOX_REFRESH_TOKEN, and related keys."
+      },
+      "cacheDir": {
+        "type": "string",
+        "description": "Directory for the access token cache (created with mode 0700). Default: ~/.cache/openclaw-dropbox."
+      },
+      "serverName": {
+        "type": "string",
+        "description": "mcporter server name for Dropbox. Default: dropbox."
+      }
+    }
+  },
+  "uiHints": {
+    "mcporterBin": { "label": "mcporter executable", "placeholder": "mcporter" },
+    "mcporterConfig": { "label": "mcporter config path", "placeholder": "~/.openclaw/workspace/config/mcporter.json" },
+    "envFile": { "label": "Credentials env file", "placeholder": "~/.openclaw/dropbox.env" },
+    "cacheDir": { "label": "Token cache directory", "placeholder": "~/.cache/openclaw-dropbox" },
+    "serverName": { "label": "mcporter server name", "placeholder": "dropbox" }
+  }
+}

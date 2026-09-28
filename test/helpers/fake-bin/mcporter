@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// Fake mcporter used by the CLI tests. Prints what it received as JSON, then
+// exits with FAKE_MCPORTER_EXIT or kills itself with FAKE_MCPORTER_SIGNAL.
+const credentialKeys = [
+  "DROPBOX_APP_KEY",
+  "DROPBOX_APP_SECRET",
+  "DROPBOX_REFRESH_TOKEN",
+  "DROPBOX_ACCESS_TOKEN",
+  "DROPBOX_ACCESS_TOKEN_EXPIRES_AT",
+];
+const report = {
+  argv: process.argv.slice(2),
+  token: process.env.DROPBOX_MCP_TOKEN ?? null,
+  leaked: credentialKeys.filter((key) => key in process.env),
+  cwd: process.cwd(),
+};
+process.stdout.write(`${JSON.stringify(report)}\n`);
+
+const sleepMs = Number(process.env.FAKE_MCPORTER_SLEEP_MS ?? 0);
+const finish = () => {
+  if (process.env.FAKE_MCPORTER_SIGNAL) {
+    process.kill(process.pid, process.env.FAKE_MCPORTER_SIGNAL);
+    return;
+  }
+  process.exit(Number(process.env.FAKE_MCPORTER_EXIT ?? 0));
+};
+if (sleepMs > 0) setTimeout(finish, sleepMs);
+else finish();
