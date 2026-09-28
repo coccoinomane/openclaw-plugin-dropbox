@@ -9,6 +9,7 @@
     "src",
     "skills",
     "openclaw.plugin.json",
+    "docs",
     "README.md",
     "LICENSE",
     ".env.example"
@@ -20,7 +21,9 @@
     "node": ">=24.16.0"
   },
   "openclaw": {
-    "extensions": ["./index.js"],
+    "extensions": [
+      "./index.js"
+    ],
     "compat": {
       "pluginApi": "2026.9.4",
       "minGatewayVersion": "2026.9.4"
@@ -38,6 +41,21 @@
       "optional": true
     }
   },
-  "keywords": ["openclaw", "openclaw-plugin", "dropbox", "mcporter", "mcp"],
-  "license": "MIT"
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "dropbox",
+    "mcporter",
+    "mcp"
+  ],
+  "license": "MIT",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coccoinomane/openclaw-plugin-dropbox.git"
+  },
+  "homepage": "https://github.com/coccoinomane/openclaw-plugin-dropbox#readme",
+  "bugs": {
+    "url": "https://github.com/coccoinomane/openclaw-plugin-dropbox/issues"
+  }
 }
