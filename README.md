@@ -1,8 +1,10 @@
 # Dropbox for OpenClaw
 
-Use Dropbox from OpenClaw through the [mcporter](https://mcporter.dev) CLI, with automatic OAuth token refresh.
+Use Dropbox through a CLI without filling your model's context window with Dropbox tool definitions.
 
-The plugin packages a skill and a small CLI wrapper. It reuses your existing mcporter installation and configuration rather than adding Dropbox tools directly to OpenClaw. Before each request, the wrapper checks the access token and renews it if needed. No cron job or background service is required.
+Instead of registering the full Dropbox tool catalog with the model, this plugin lets the agent run CLI commands and request command details when needed. Only a short skill description is advertised upfront; the agent loads the instructions when a task calls for Dropbox. This leaves more context available for your conversation and work.
+
+The CLI uses [mcporter](https://mcporter.dev) under the hood, reusing your existing installation and configuration. A small wrapper refreshes the OAuth access token when needed, before calling Dropbox. No cron job or background service is required.
 
 ## Requirements
 
