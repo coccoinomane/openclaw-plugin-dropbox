@@ -2,7 +2,7 @@
   "id": "dropbox",
   "name": "Dropbox",
   "description": "Dropbox through the external mcporter CLI: a packaged skill plus a wrapper that refreshes the OAuth access token on demand. No model tools are registered.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "categories": ["tools"],
   "skills": ["skills"],
   "activation": {

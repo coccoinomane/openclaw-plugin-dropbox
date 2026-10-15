@@ -25,7 +25,7 @@ agent (skill)  ──►  node skills/dropbox/scripts/dropbox-mcporter.mjs call 
 
 ## Requirements
 
-- OpenClaw 2026.9.4 (the tested SDK target; other versions require compatibility testing).
+- OpenClaw 2026.9.4 to 2026.10.3 (tested; other versions require compatibility testing).
 - Node 24.16 or newer.
 - `mcporter` installed and on `PATH`, or its path configured. The plugin never installs it. The upstream OpenClaw `mcporter` skill declares the node installer (`npm install -g mcporter`); this plugin's skill declares the same one so the macOS Skills UI can offer it.
 - An existing mcporter config with a `dropbox` server whose `Authorization` header references `${DROPBOX_MCP_TOKEN}`.
@@ -49,7 +49,7 @@ To prove the package shape before publishing, pack it and install the tarball:
 
 ```bash
 npm pack --pack-destination /tmp
-openclaw plugins install npm-pack:/tmp/openclaw-plugin-dropbox-0.1.0.tgz --force
+openclaw plugins install npm-pack:/tmp/openclaw-plugin-dropbox-0.1.1.tgz --force
 ```
 
 The source repository is [coccoinomane/openclaw-plugin-dropbox](https://github.com/coccoinomane/openclaw-plugin-dropbox). Distribution is through Git; no npm or ClawHub release is published.
