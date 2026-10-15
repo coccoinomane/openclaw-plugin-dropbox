@@ -1,6 +1,6 @@
 {
   "name": "openclaw-plugin-dropbox",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Dropbox for OpenClaw through the external mcporter CLI, with on-demand OAuth token refresh.",
   "type": "module",
   "main": "index.js",

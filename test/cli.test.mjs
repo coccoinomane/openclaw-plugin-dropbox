@@ -329,7 +329,7 @@ test("a held lock is respected up to the bounded timeout (exit 6)", async (t) =>
   const s = await setup(t);
   const server = await startTokenServer(t);
   const lockDir = path.join(s.cacheDir, "token-cache.lock");
-  await fs.mkdir(lockDir, { recursive: true });
+  await fs.mkdir(lockDir, { recursive: true, mode: 0o700 });
   const os = await import("node:os");
   await fs.writeFile(path.join(lockDir, "owner.json"), JSON.stringify({ pid: process.pid, hostname: os.hostname(), id: "test-holder" }));
   const started = Date.now();
@@ -344,7 +344,7 @@ test("a stale lock left by a dead process fails closed", async (t) => {
   const s = await setup(t);
   const server = await startTokenServer(t);
   const lockDir = path.join(s.cacheDir, "token-cache.lock");
-  await fs.mkdir(lockDir, { recursive: true });
+  await fs.mkdir(lockDir, { recursive: true, mode: 0o700 });
   const os = await import("node:os");
   await fs.writeFile(path.join(lockDir, "owner.json"), JSON.stringify({ pid: 2 ** 22 - 11, hostname: os.hostname(), id: "dead" }));
   const then = new Date(Date.now() - 60_000);

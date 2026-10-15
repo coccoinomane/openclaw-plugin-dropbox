@@ -8,14 +8,14 @@ The CLI uses [mcporter](https://mcporter.dev) under the hood, reusing your exist
 
 ## Requirements
 
-- **OpenClaw 2026.9.4 to 2026.10.3** and Node.js 24.16+. Other OpenClaw versions need compatibility testing.
+- **OpenClaw 2026.9.4 or newer** (tested up to 2026.10.3) and Node.js 24.16+.
 - **mcporter**, installed separately and available on `PATH` (tested with 0.12.3).
 - A Dropbox app with an **OAuth refresh token**. See the [setup guide](docs/guide.md#2-dropbox-app-and-refresh-token) to obtain one.
 
 ## Install
 
 ```sh
-openclaw plugins install git:github.com/coccoinomane/openclaw-plugin-dropbox@v0.1.1
+openclaw plugins install git:github.com/coccoinomane/openclaw-plugin-dropbox@v0.1.2
 ```
 
 Installation may restart a managed OpenClaw Gateway. If mcporter is missing, install it separately; this plugin does not download a private copy.
